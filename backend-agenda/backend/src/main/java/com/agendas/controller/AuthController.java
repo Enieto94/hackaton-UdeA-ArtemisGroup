@@ -19,12 +19,17 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public void register(@Valid @RequestBody RegisterRequest req) {
-        service.register(req);
+    public AuthResponse register(@Valid @RequestBody RegisterRequest req) {
+        return service.register(req);
     }
 
     @PostMapping("/google")
     public AuthResponse google(@Valid @RequestBody GoogleLoginRequest req) {
-        return service.googleLogin(req.getToken());
+        return service.googleLogin(req);
+    }
+
+    @PostMapping("/microsoft")
+    public AuthResponse microsoft(@Valid @RequestBody MicrosoftLoginRequest req) {
+        return service.microsoftLogin(req);
     }
 }

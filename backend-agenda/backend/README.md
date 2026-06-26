@@ -1,6 +1,6 @@
-# Backend Agenda
+# Backend Cavaltec Privacy Design Check
 
-Backend Spring Boot para gestión de autenticación, barberos, bloqueos y citas.
+Backend Spring Boot para autenticación, empresas, evaluaciones, respuestas y recomendaciones del autodiagnóstico Cavaltec Privacy Design Check.
 
 ## Requisitos
 

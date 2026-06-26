@@ -1,39 +1,35 @@
 package com.agendas.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
 import lombok.Data;
 
 import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "usuarios")
+@Table(name = "empresas")
 @Data
-public class User {
+public class Empresa {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "empresa_id")
-    private Empresa empresa;
-
     @Column(nullable = false)
     private String nombre;
 
     @Column(nullable = false, unique = true)
-    private String email;
+    private String nit;
 
-    @Column(name = "oauth_provider")
-    private String oauthProvider;
+    private String sector;
 
-    @Column(nullable = false)
-    private String password;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "rol", nullable = false)
-    private Role role;
+    private String tamano;
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt;

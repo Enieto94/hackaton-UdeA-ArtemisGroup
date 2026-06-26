@@ -13,8 +13,6 @@ public class RegisterRequest {
     @NotBlank(message = "El nombre es obligatorio")
     private String nombre;
 
-    private String telefono;
-
     @Email(message = "El email no tiene un formato válido")
     @NotBlank(message = "El email es obligatorio")
     private String email;
@@ -23,6 +21,8 @@ public class RegisterRequest {
     @Size(min = 6, message = "La contraseña debe tener al menos 6 caracteres")
     private String password;
 
-    @NotNull(message = "El rol es obligatorio")
+    @NotNull(message = "La empresa es obligatoria")
+    private EmpresaRegistrationRequest empresa;
+
     private Role role;
 }

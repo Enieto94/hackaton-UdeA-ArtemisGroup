@@ -12,4 +12,6 @@ public class GoogleLoginRequest {
 
     @NotBlank(message = "El token de Google es obligatorio")
     private String token;
+
+    private EmpresaRegistrationRequest empresa;
 }

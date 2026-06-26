@@ -1,5 +1,11 @@
 const STORAGE_KEY = "cavaltec-privacy-design-check";
 
+const CONFIG = {
+  apiBaseUrl: window.CAVALTEC_API_URL || "http://localhost:8080",
+  googleClientId: window.CAVALTEC_GOOGLE_CLIENT_ID || "",
+  microsoftClientId: window.CAVALTEC_MICROSOFT_CLIENT_ID || ""
+};
+
 const questions = [
   {
     id: 1,
@@ -133,7 +139,15 @@ const questions = [
 const state = loadState();
 
 const elements = {
+  authView: document.querySelector("#authView"),
+  appShell: document.querySelector("#appShell"),
+  loginTab: document.querySelector("#loginTab"),
+  registerTab: document.querySelector("#registerTab"),
+  loginForm: document.querySelector("#loginForm"),
+  registerForm: document.querySelector("#registerForm"),
+  authMessage: document.querySelector("#authMessage"),
   sessionStatus: document.querySelector("#sessionStatus"),
+  logoutButton: document.querySelector("#logoutButton"),
   scoreValue: document.querySelector("#scoreValue"),
   scoreLevel: document.querySelector("#scoreLevel"),
   scorePolicy: document.querySelector("#scorePolicy"),
@@ -148,6 +162,8 @@ const elements = {
   chatInput: document.querySelector("#chatInput"),
   chatQuestion: document.querySelector("#chatQuestion"),
   resetButton: document.querySelector("#resetButton"),
+  saveDraftButton: document.querySelector("#saveDraftButton"),
+  completeButton: document.querySelector("#completeButton"),
   companyName: document.querySelector("#companyName"),
   companyNit: document.querySelector("#companyNit"),
   companySector: document.querySelector("#companySector"),
@@ -157,19 +173,25 @@ const elements = {
 init();
 
 function init() {
-  bindSessionButtons();
+  bindAuth();
   bindCompanyFields();
   bindChat();
   bindReset();
+  bindPersistence();
   renderQuestionOptions();
-  renderQuestions();
+  renderAppGate();
   renderSession();
   renderCompany();
+  renderQuestions();
   renderResults();
+
+  if (state.session) {
+    loadLatestEvaluation();
+  }
 
   if (state.chat.length === 0) {
     addAssistantMessage(
-      "Seleccione una pregunta y consulte por criterio, evidencia o recomendación. Las respuestas usan el mapeo local de la Ley 1581 incluido en el repositorio."
+      "Seleccione una pregunta y consulte por criterio, evidencia o recomendación. Las respuestas se envían al backend con contexto normativo de Ley 1581."
     );
   } else {
     renderChat();
@@ -179,6 +201,7 @@ function init() {
 function defaultState() {
   return {
     session: null,
+    activeEvaluationId: null,
     company: {
       name: "",
       nit: "",
@@ -204,20 +227,174 @@ function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
-function bindSessionButtons() {
-  document.querySelectorAll(".oauth-button").forEach((button) => {
-    button.addEventListener("click", () => {
-      const provider = button.dataset.provider;
-      state.session = {
-        provider,
-        email: `usuario@${provider.toLowerCase()}.oauth`,
-        role: "evaluador",
-        startedAt: new Date().toISOString()
-      };
-      saveState();
-      renderSession();
+function bindAuth() {
+  elements.loginTab.addEventListener("click", () => setAuthMode("login"));
+  elements.registerTab.addEventListener("click", () => setAuthMode("register"));
+
+  elements.loginForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await authenticate("/auth/login", {
+      email: document.querySelector("#loginEmail").value.trim(),
+      password: document.querySelector("#loginPassword").value
     });
   });
+
+  elements.registerForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const company = readRegisterCompany();
+    const authenticated = await authenticate("/auth/register", {
+      nombre: document.querySelector("#registerName").value.trim(),
+      email: document.querySelector("#registerEmail").value.trim(),
+      password: document.querySelector("#registerPassword").value,
+      role: "EVALUADOR",
+      empresa: company
+    });
+    if (authenticated) {
+      syncCompanyFromRegistration(company);
+    }
+  });
+
+  document.querySelectorAll(".oauth-button").forEach((button) => {
+    button.addEventListener("click", () => startOAuth(button.dataset.provider));
+  });
+
+  elements.logoutButton.addEventListener("click", () => {
+    state.session = null;
+    saveState();
+    renderAppGate();
+    renderSession();
+  });
+}
+
+function setAuthMode(mode) {
+  const isRegister = mode === "register";
+  elements.loginTab.classList.toggle("is-active", !isRegister);
+  elements.registerTab.classList.toggle("is-active", isRegister);
+  elements.loginForm.classList.toggle("is-hidden", isRegister);
+  elements.registerForm.classList.toggle("is-hidden", !isRegister);
+  elements.authMessage.textContent = "";
+}
+
+async function authenticate(path, payload) {
+  try {
+    setAuthMessage("Validando credenciales...");
+    const response = await apiFetch(path, {
+      method: "POST",
+      body: JSON.stringify(payload),
+      auth: false
+    });
+    setSession(response);
+    setAuthMessage("");
+    await loadLatestEvaluation();
+    return true;
+  } catch (error) {
+    setAuthMessage(error.message);
+    return false;
+  }
+}
+
+async function startOAuth(provider) {
+  const isRegister = !elements.registerForm.classList.contains("is-hidden");
+  const empresa = isRegister ? readRegisterCompany() : null;
+
+  if (provider === "Google") {
+    await startGoogleOAuth(empresa);
+    return;
+  }
+
+  await startMicrosoftOAuth(empresa);
+}
+
+async function startGoogleOAuth(empresa) {
+  if (!CONFIG.googleClientId) {
+    setAuthMessage("Configure window.CAVALTEC_GOOGLE_CLIENT_ID para usar Google OAuth.");
+    return;
+  }
+
+  if (!window.google?.accounts?.id) {
+    setAuthMessage("El SDK de Google Identity Services no está disponible.");
+    return;
+  }
+
+  window.google.accounts.id.initialize({
+    client_id: CONFIG.googleClientId,
+    callback: async (response) => {
+      const authenticated = await authenticate("/auth/google", { token: response.credential, empresa });
+      if (authenticated && empresa) syncCompanyFromRegistration(empresa);
+    }
+  });
+  window.google.accounts.id.prompt();
+}
+
+async function startMicrosoftOAuth(empresa) {
+  if (!CONFIG.microsoftClientId) {
+    setAuthMessage("Configure window.CAVALTEC_MICROSOFT_CLIENT_ID para usar Microsoft OAuth.");
+    return;
+  }
+
+  if (!window.msal) {
+    setAuthMessage("MSAL no está disponible.");
+    return;
+  }
+
+  try {
+    const client = new window.msal.PublicClientApplication({
+      auth: {
+        clientId: CONFIG.microsoftClientId,
+        authority: "https://login.microsoftonline.com/common",
+        redirectUri: window.location.origin + window.location.pathname
+      }
+    });
+    const result = await client.loginPopup({ scopes: ["User.Read"] });
+    const authenticated = await authenticate("/auth/microsoft", { token: result.accessToken, empresa });
+    if (authenticated && empresa) syncCompanyFromRegistration(empresa);
+  } catch (error) {
+    setAuthMessage(error.message || "No se pudo iniciar sesión con Microsoft.");
+  }
+}
+
+function readRegisterCompany() {
+  return {
+    nombre: document.querySelector("#registerCompanyName").value.trim(),
+    nit: document.querySelector("#registerCompanyNit").value.trim(),
+    sector: document.querySelector("#registerCompanySector").value,
+    tamano: document.querySelector("#registerCompanySize").value
+  };
+}
+
+function syncCompanyFromRegistration(company) {
+  state.company = {
+    name: company.nombre,
+    nit: company.nit,
+    sector: company.sector,
+    size: company.tamano
+  };
+  saveState();
+  renderCompany();
+}
+
+function setSession(response) {
+  state.session = {
+    token: response.token,
+    role: response.role,
+    email: response.email,
+    nombre: response.nombre,
+    empresaId: response.empresaId,
+    startedAt: new Date().toISOString()
+  };
+  saveState();
+  renderAppGate();
+  renderSession();
+}
+
+function setAuthMessage(message) {
+  elements.authMessage.textContent = message;
+}
+
+function renderAppGate() {
+  const authenticated = Boolean(state.session?.token);
+  elements.authView.classList.toggle("is-hidden", authenticated);
+  elements.appShell.classList.toggle("is-hidden", !authenticated);
 }
 
 function bindCompanyFields() {
@@ -238,40 +415,106 @@ function bindCompanyFields() {
 }
 
 function bindChat() {
-  elements.chatForm.addEventListener("submit", (event) => {
+  elements.chatForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const text = elements.chatInput.value.trim();
     if (!text) return;
 
     const question = getQuestion(Number(elements.chatQuestion.value));
     addUserMessage(text);
-    addAssistantMessage(buildAssistantReply(text, question));
     elements.chatInput.value = "";
+    await requestAssistantReply(text, question);
   });
 
   document.querySelectorAll(".quick-action").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
       const question = getQuestion(Number(elements.chatQuestion.value));
       const prompt = button.dataset.prompt;
       addUserMessage(prompt);
-      addAssistantMessage(buildAssistantReply(prompt, question));
+      await requestAssistantReply(prompt, question);
     });
   });
 }
 
+async function requestAssistantReply(text, question) {
+  try {
+    const response = await apiFetch("/chat/diagnostico", {
+      method: "POST",
+      body: JSON.stringify({
+        mensaje: text,
+        preguntaNumero: question.id,
+        respuesta: state.answers[question.id] ?? null,
+        evidencia: state.evidence[question.id] || ""
+      })
+    });
+    addAssistantMessage(response.respuesta);
+  } catch (error) {
+    addAssistantMessage(`No se pudo consultar el backend: ${error.message}`);
+  }
+}
+
 function bindReset() {
   elements.resetButton.addEventListener("click", () => {
-    localStorage.removeItem(STORAGE_KEY);
-    Object.assign(state, defaultState());
-    renderSession();
-    renderCompany();
+    state.activeEvaluationId = null;
+    state.answers = {};
+    state.evidence = {};
+    state.chat = [];
+    saveState();
     renderQuestions();
     renderResults();
     renderChat();
-    addAssistantMessage(
-      "Diagnóstico reiniciado. Seleccione una pregunta para consultar criterios y evidencias."
-    );
+    addAssistantMessage("Diagnóstico reiniciado. Seleccione una pregunta para consultar criterios y evidencias.");
   });
+}
+
+function bindPersistence() {
+  elements.saveDraftButton.addEventListener("click", () => saveEvaluation(false));
+  elements.completeButton.addEventListener("click", () => saveEvaluation(true));
+}
+
+async function saveEvaluation(completar) {
+  try {
+    const payload = {
+      completar,
+      respuestas: questions.map((question) => ({
+        preguntaNumero: question.id,
+        respuesta: state.answers[question.id] ?? null,
+        evidencia: state.evidence[question.id] || ""
+      }))
+    };
+
+    const path = state.activeEvaluationId ? `/evaluaciones/${state.activeEvaluationId}` : "/evaluaciones";
+    const method = state.activeEvaluationId ? "PUT" : "POST";
+    const response = await apiFetch(path, { method, body: JSON.stringify(payload) });
+    applyEvaluationResponse(response);
+    addAssistantMessage(completar ? "Evaluación completada y guardada en el backend." : "Borrador guardado en el backend.");
+  } catch (error) {
+    addAssistantMessage(`No se pudo guardar la evaluación: ${error.message}`);
+  }
+}
+
+async function loadLatestEvaluation() {
+  if (!state.session?.token) return;
+
+  try {
+    const evaluations = await apiFetch("/evaluaciones");
+    if (evaluations.length > 0) {
+      applyEvaluationResponse(evaluations[0]);
+    }
+  } catch {
+    // El usuario puede estar recién registrado; no hay histórico que cargar.
+  }
+}
+
+function applyEvaluationResponse(evaluation) {
+  state.activeEvaluationId = evaluation.id;
+  evaluation.respuestas?.forEach((item) => {
+    state.answers[item.preguntaNumero] = item.respuesta;
+    state.evidence[item.preguntaNumero] = item.evidencia || "";
+  });
+  saveState();
+  renderQuestions();
+  renderResults();
 }
 
 function renderSession() {
@@ -280,7 +523,8 @@ function renderSession() {
     return;
   }
 
-  elements.sessionStatus.textContent = `${state.session.provider} · ${state.session.role}`;
+  const role = state.session.role?.toLowerCase() || "evaluador";
+  elements.sessionStatus.textContent = `${state.session.email || state.session.nombre} · ${role}`;
 }
 
 function renderCompany() {
@@ -314,7 +558,6 @@ function renderQuestions() {
     card.className = `question-card${disabled ? " is-disabled" : ""}`;
 
     const content = document.createElement("div");
-
     const meta = document.createElement("div");
     meta.className = "question-meta";
     meta.append(createPill(`P${question.id}`));
@@ -350,10 +593,10 @@ function renderQuestions() {
     answerGroup.className = "answer-group";
     answerGroup.setAttribute("role", "group");
     answerGroup.setAttribute("aria-label", `Respuesta pregunta ${question.id}`);
-
-    const yesButton = createAnswerButton("Sí", "yes", question, disabled);
-    const noButton = createAnswerButton("No", "no", question, disabled);
-    answerGroup.append(yesButton, noButton);
+    answerGroup.append(
+      createAnswerButton("Sí", "yes", question, disabled),
+      createAnswerButton("No", "no", question, disabled)
+    );
 
     card.append(content, answerGroup);
     elements.questionsContainer.append(card);
@@ -427,7 +670,6 @@ function calculateResult() {
     design: 0,
     governance: 0
   };
-
   const gaps = [];
 
   questions.forEach((question) => {
@@ -443,9 +685,7 @@ function calculateResult() {
       return;
     }
 
-    if (question.parent && state.answers[question.parent] !== true) {
-      return;
-    }
+    if (question.parent && state.answers[question.parent] !== true) return;
 
     if (state.answers[question.id] === true) {
       if (question.block === "Política de datos personales") blocks.policy += question.weight;
@@ -458,8 +698,7 @@ function calculateResult() {
     }
   });
 
-  const total = blocks.policy + blocks.design + blocks.governance;
-  return { total, blocks, gaps };
+  return { total: blocks.policy + blocks.design + blocks.governance, blocks, gaps };
 }
 
 function scoreLevel(score) {
@@ -493,7 +732,6 @@ function renderGaps(gaps) {
 
 function renderPlan(gaps) {
   elements.planList.textContent = "";
-
   const ordered = [...gaps].sort((a, b) => b.weight - a.weight || a.id - b.id);
 
   if (ordered.length === 0) {
@@ -508,26 +746,17 @@ function renderPlan(gaps) {
   }
 
   ordered.slice(0, 6).forEach((question) => {
-    elements.planList.append(
-      createResultItem(
-        priorityLabel(question),
-        question.recommendation,
-        severityFor(question)
-      )
-    );
+    elements.planList.append(createResultItem(priorityLabel(question), question.recommendation, severityFor(question)));
   });
 }
 
 function createResultItem(title, body, severity) {
   const item = document.createElement("article");
   item.className = `result-item ${severity}`;
-
   const strong = document.createElement("strong");
   strong.textContent = title;
-
   const span = document.createElement("span");
   span.textContent = body;
-
   item.append(strong, span);
   return item;
 }
@@ -570,35 +799,39 @@ function renderChat() {
   elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
 }
 
-function buildAssistantReply(prompt, question) {
-  const lower = prompt.toLowerCase();
-  const answer = state.answers[question.id];
-  const answerText = answer === true ? "Sí" : answer === false ? "No" : "Sin respuesta";
-  const evidence = state.evidence[question.id] || "No se ha registrado evidencia.";
-
-  if (lower.includes("evidencia") || lower.includes("cumplimiento")) {
-    return `Criterio P${question.id}: responda Sí solo si puede mostrar evidencia verificable. Evidencia esperada: ${question.evidence} Base normativa: ${question.article}. Evidencia registrada: ${evidence}`;
-  }
-
-  if (lower.includes("brecha") || lower.includes("recom")) {
-    if (answer === true) {
-      return `P${question.id} no aparece como brecha porque la respuesta actual es Sí. Mantenga evidencia vigente: ${question.evidence}`;
-    }
-    return `Brecha P${question.id}: ${question.recommendation} Esta acción se prioriza por su relación con ${question.article} y por su peso de ${question.weight || "madurez complementaria"}.`;
-  }
-
-  if (lower.includes("score") || lower.includes("resultado") || lower.includes("porcentaje")) {
-    const result = calculateResult();
-    return `Resultado actual: ${result.total}% (${scoreLevel(result.total)}). Política ${result.blocks.policy}/40, Privacidad desde el diseño ${result.blocks.design}/36, Gobernanza ${result.blocks.governance}/24.`;
-  }
-
-  if (lower.includes("ley") || lower.includes("art")) {
-    return `La P${question.id} se fundamenta en ${question.article}. En términos prácticos: ${question.help}`;
-  }
-
-  return `P${question.id}: ${question.help} Respuesta actual: ${answerText}. Para responder correctamente, valide si existe evidencia como: ${question.evidence}`;
-}
-
 function getQuestion(id) {
   return questions.find((question) => question.id === id) || questions[0];
+}
+
+async function apiFetch(path, options = {}) {
+  const headers = {
+    "Content-Type": "application/json",
+    ...(options.headers || {})
+  };
+
+  if (options.auth !== false && state.session?.token) {
+    headers.Authorization = `Bearer ${state.session.token}`;
+  }
+
+  const response = await fetch(`${CONFIG.apiBaseUrl}${path}`, {
+    ...options,
+    headers
+  });
+
+  if (!response.ok) {
+    let message = "Solicitud fallida";
+    try {
+      const error = await response.json();
+      message = error.message || message;
+    } catch {
+      message = response.statusText || message;
+    }
+    throw new Error(message);
+  }
+
+  if (response.status === 204) {
+    return null;
+  }
+
+  return response.json();
 }
