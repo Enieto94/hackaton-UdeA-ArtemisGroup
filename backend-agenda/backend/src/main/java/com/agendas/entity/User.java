@@ -11,11 +11,18 @@ public class User {
     @Id @GeneratedValue
     private Long id;
 
+    @Column(nullable = false)
     private String nombre;
+
     private String telefono;
+
+    @Column(nullable = false, unique = true)
     private String email;
+
+    @Column(nullable = false)
     private String password;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private Role role;
 }

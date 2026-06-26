@@ -13,11 +13,13 @@ public class BlockedDay {
     @GeneratedValue
     private Long id;
 
+    @Column(nullable = false)
     private LocalDate fecha;
 
-    // 🔥 NULL = bloqueo global (feriado)
+    // null representa un bloqueo global.
     @ManyToOne
     private Barber barber;
 
+    @Column(nullable = false)
     private String motivo;
 }

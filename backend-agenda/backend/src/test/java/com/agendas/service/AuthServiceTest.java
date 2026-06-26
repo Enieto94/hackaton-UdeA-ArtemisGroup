@@ -6,7 +6,6 @@ import com.agendas.repository.UserRepository;
 import com.agendas.security.jwt.JwtService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.web.client.RestTemplateBuilder;
@@ -21,6 +20,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -39,16 +39,13 @@ class AuthServiceTest {
     @Mock
     private RestTemplate restTemplate;
 
-    @InjectMocks
-    private AuthService service;
-
     @Test
     void googleLoginShouldCreateUserAndReturnTokenWhenGoogleTokenIsValid() {
         PasswordEncoder encoder = new BCryptPasswordEncoder();
-        ReflectionTestUtils.setField(service, "encoder", encoder);
+        AuthService service = new AuthService(repo, encoder, jwtService, restTemplateBuilder);
         ReflectionTestUtils.setField(service, "googleClientId", "client-id");
         when(restTemplateBuilder.build()).thenReturn(restTemplate);
-        when(restTemplate.getForObject(anyString(), any(Class.class), anyString())).thenReturn(Map.of(
+        when(restTemplate.getForObject(anyString(), eq(Map.class), eq("valid-token"))).thenReturn(Map.of(
                 "email", "google@example.com",
                 "name", "Google User",
                 "email_verified", true,

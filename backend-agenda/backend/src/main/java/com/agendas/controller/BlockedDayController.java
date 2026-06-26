@@ -17,9 +17,6 @@ public class BlockedDayController {
     private final BlockedDaysRepository repo;
     private final BarberRepository barberRepo;
 
-    // =========================================================
-    // 👨‍💼 ADMIN → BLOQUEAR DÍA GLOBAL (FERIADO)
-    // =========================================================
     @PostMapping("/global")
     @PreAuthorize("hasRole('ADMIN')")
     public void blockGlobal(@RequestParam String fecha,
@@ -32,9 +29,6 @@ public class BlockedDayController {
         repo.save(b);
     }
 
-    // =========================================================
-    // 👨‍💼 ADMIN → BLOQUEAR BARBERO
-    // =========================================================
     @PostMapping("/barber")
     @PreAuthorize("hasRole('ADMIN')")
     public void blockBarber(@RequestParam Long barberId,
@@ -49,9 +43,6 @@ public class BlockedDayController {
         repo.save(b);
     }
 
-    // =========================================================
-    // 👨‍💼 ADMIN → ELIMINAR BLOQUEO
-    // =========================================================
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public void delete(@PathVariable Long id) {

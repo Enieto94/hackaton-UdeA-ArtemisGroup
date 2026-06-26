@@ -29,40 +29,32 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AppointmentService {
 
-    // 🟢 DEPENDENCIAS
     private final AppointmentRepository repo;
     private final UserRepository userRepo;
     private final BarberRepository barberRepo;
     private final AppointmentMapper mapper;
     private final BlockedDaysRepository blockedDayRepo;
 
-    // =========================================================
-    // 🔥 CREAR CITA (CONCURRENCIA PRO)
-    // =========================================================
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public AppointmentResponse create(AppointmentRequest req, String email) {
-        // 🔥 VALIDAR BLOQUEO GLOBAL
         blockedDayRepo.findByFechaAndBarberIsNull(req.getFecha())
                 .ifPresent(b -> {
                     throw new BusinessException("Día no disponible (feriado)");
                 });
 
-        // 🔥 VALIDAR BLOQUEO DEL BARBERO
         blockedDayRepo.findByFechaAndBarberId(req.getFecha(), req.getBarberId())
                 .ifPresent(b -> {
                     throw new BusinessException("El barbero no está disponible ese día");
                 });
-        // 🔒 1. BLOQUEO PESIMISTA
+
         repo.lockAppointments(req.getBarberId(), req.getFecha());
 
-        // 2. Buscar usuario y barbero
         User user = userRepo.findByEmail(email)
                 .orElseThrow(() -> new BusinessException("Usuario no encontrado"));
 
         Barber barber = barberRepo.findById(req.getBarberId())
                 .orElseThrow(() -> new BusinessException("Barbero no encontrado"));
 
-        // 3. Validar disponibilidad
         boolean ocupado = repo.existsByBarberIdAndFechaAndHora(
                 barber.getId(), req.getFecha(), req.getHora()
         );
@@ -72,7 +64,6 @@ public class AppointmentService {
         }
 
         try {
-            // 4. Crear cita
             Appointment a = new Appointment();
             a.setUser(user);
             a.setBarber(barber);
@@ -81,7 +72,6 @@ public class AppointmentService {
             a.setServicio(req.getServicio());
             a.setEstado(Estado.PENDIENTE);
 
-            // 🔥 VALIDACIÓN INMEDIATA EN DB
             repo.saveAndFlush(a);
 
             return mapper.toResponse(a);
@@ -95,10 +85,7 @@ public class AppointmentService {
         }
     }
 
-
-    // =========================================================
-    // 👨‍💼 ADMIN → VER TODAS LAS CITAS
-    // =========================================================
+    @Transactional(readOnly = true)
     public List<AppointmentResponse> getAll() {
         return repo.findAll()
                 .stream()
@@ -106,9 +93,7 @@ public class AppointmentService {
                 .toList();
     }
 
-    // =========================================================
-    // 💈 BARBERO → VER SUS CITAS
-    // =========================================================
+    @Transactional(readOnly = true)
     public List<AppointmentResponse> getByBarber(String email) {
         return repo.findByBarberUserEmail(email)
                 .stream()
@@ -116,9 +101,7 @@ public class AppointmentService {
                 .toList();
     }
 
-    // =========================================================
-    // 👤 USUARIO → VER SUS CITAS
-    // =========================================================
+    @Transactional(readOnly = true)
     public List<AppointmentResponse> getByUser(String email) {
         return repo.findByUserEmail(email)
                 .stream()
@@ -126,20 +109,16 @@ public class AppointmentService {
                 .toList();
     }
 
-    // =========================================================
-    // ⏰ DISPONIBILIDAD DINÁMICA
-    // =========================================================
+    @Transactional(readOnly = true)
     public List<LocalTime> getAvailableSlots(Long barberId, LocalDate fecha) {
-        // 🔥 BLOQUEO GLOBAL
         if (blockedDayRepo.findByFechaAndBarberIsNull(fecha).isPresent()) {
             return List.of();
         }
 
-        // 🔥 BLOQUEO BARBERO
         if (blockedDayRepo.findByFechaAndBarberId(fecha, barberId).isPresent()) {
             return List.of();
         }
-        // ❌ Validar fecha pasada
+
         if (fecha.isBefore(LocalDate.now())) {
             throw new BusinessException("No puedes consultar fechas pasadas");
         }
@@ -173,24 +152,18 @@ public class AppointmentService {
         Appointment appointment = repo.findById(appointmentId)
                 .orElseThrow(() -> new BusinessException("Cita no encontrada"));
 
-        // 🔐 VALIDACIÓN POR ROL
-
-        // 👤 Usuario solo puede cancelar sus citas
         if (role.equals("USER") && !appointment.getUser().getEmail().equals(email)) {
             throw new BusinessException("No puedes cancelar esta cita");
         }
 
-        // 💈 Barbero solo puede cancelar sus citas
         if (role.equals("BARBER") && !appointment.getBarber().getUser().getEmail().equals(email)) {
             throw new BusinessException("No puedes cancelar esta cita");
         }
 
-        // ❌ No cancelar si ya está cancelada
         if (appointment.getEstado() == Estado.CANCELADA) {
             throw new BusinessException("La cita ya está cancelada");
         }
 
-        // 🔥 CAMBIO DE ESTADO
         appointment.setEstado(Estado.CANCELADA);
 
         repo.save(appointment);
@@ -203,7 +176,6 @@ public class AppointmentService {
         Appointment appointment = repo.findById(appointmentId)
                 .orElseThrow(() -> new BusinessException("Cita no encontrada"));
 
-        // 🔐 Validar que el barbero es dueño de la cita
         if (!appointment.getBarber().getUser().getEmail().equals(email)) {
             throw new BusinessException("No puedes confirmar esta cita");
         }
@@ -215,7 +187,6 @@ public class AppointmentService {
         appointment.setEstado(Estado.CONFIRMADA);
 
         repo.save(appointment);
-
     }
 
     @Transactional

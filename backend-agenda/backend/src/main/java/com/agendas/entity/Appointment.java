@@ -16,18 +16,23 @@ public class Appointment {
     @Id @GeneratedValue
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(optional = false)
     private User user;
 
-    @ManyToOne
+    @ManyToOne(optional = false)
     private Barber barber;
 
+    @Column(nullable = false)
     private LocalDate fecha;
+
+    @Column(nullable = false)
     private LocalTime hora;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private Servicio servicio;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private Estado estado;
 }

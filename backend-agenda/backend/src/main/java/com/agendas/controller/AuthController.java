@@ -1,8 +1,8 @@
 package com.agendas.controller;
 
 import com.agendas.dto.auth.*;
-import com.agendas.entity.User;
 import com.agendas.service.AuthService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,17 +14,17 @@ public class AuthController {
     private final AuthService service;
 
     @PostMapping("/login")
-    public AuthResponse login(@RequestBody LoginRequest req) {
+    public AuthResponse login(@Valid @RequestBody LoginRequest req) {
         return service.login(req);
     }
 
     @PostMapping("/register")
-    public void register(@RequestBody User user) {
-        service.register(user);
+    public void register(@Valid @RequestBody RegisterRequest req) {
+        service.register(req);
     }
 
     @PostMapping("/google")
-    public AuthResponse google(@RequestBody GoogleLoginRequest req) {
+    public AuthResponse google(@Valid @RequestBody GoogleLoginRequest req) {
         return service.googleLogin(req.getToken());
     }
 }

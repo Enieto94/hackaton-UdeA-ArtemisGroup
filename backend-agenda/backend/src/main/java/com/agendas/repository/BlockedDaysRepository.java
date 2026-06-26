@@ -8,7 +8,6 @@ import java.util.Optional;
 
 public interface BlockedDaysRepository extends JpaRepository<BlockedDay, Long> {
 
-    // 🔥 Busca bloqueo global o por barbero
     Optional<BlockedDay> findByFechaAndBarberId(LocalDate fecha, Long barberId);
 
     Optional<BlockedDay> findByFechaAndBarberIsNull(LocalDate fecha);

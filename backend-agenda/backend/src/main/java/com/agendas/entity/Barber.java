@@ -10,6 +10,6 @@ public class Barber {
     @Id @GeneratedValue
     private Long id;
 
-    @OneToOne
+    @OneToOne(optional = false)
     private User user;
 }

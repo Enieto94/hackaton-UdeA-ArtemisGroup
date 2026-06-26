@@ -1,9 +1,9 @@
 package com.agendas.controller;
 
-// 🔴 IMPORTS
 import com.agendas.dto.appointment.AppointmentRequest;
 import com.agendas.dto.appointment.AppointmentResponse;
 import com.agendas.service.AppointmentService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.util.List;
 
-// 🟢 CONTROLADOR
 @RestController
 @RequestMapping("/appointments")
 @RequiredArgsConstructor
@@ -20,48 +19,33 @@ public class AppointmentController {
 
     private final AppointmentService service;
 
-    // =========================================================
-    // 👤 USUARIO → CREAR CITA
-    // =========================================================
     @PostMapping
     @PreAuthorize("hasRole('USER')")
     public AppointmentResponse create(
-            @RequestBody AppointmentRequest req,
+            @Valid @RequestBody AppointmentRequest req,
             Authentication auth
     ) {
         return service.create(req, auth.getName());
     }
 
-    // =========================================================
-    // 👤 USUARIO → VER SUS CITAS
-    // =========================================================
     @GetMapping("/my")
     @PreAuthorize("hasRole('USER')")
     public List<AppointmentResponse> myAppointments(Authentication auth) {
         return service.getByUser(auth.getName());
     }
 
-    // =========================================================
-    // 👨‍💼 ADMIN → VER TODAS LAS CITAS
-    // =========================================================
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public List<AppointmentResponse> getAll() {
         return service.getAll();
     }
 
-    // =========================================================
-    // 💈 BARBERO → VER SUS CITAS
-    // =========================================================
     @GetMapping("/barber")
     @PreAuthorize("hasRole('BARBER')")
     public List<AppointmentResponse> getByBarber(Authentication auth) {
         return service.getByBarber(auth.getName());
     }
 
-    // =========================================================
-    // ⏰ DISPONIBILIDAD
-    // =========================================================
     @GetMapping("/availability")
     @PreAuthorize("hasAnyRole('USER','ADMIN','BARBER')")
     public List<String> getAvailability(
@@ -98,6 +82,4 @@ public class AppointmentController {
 
         service.cancel(id, email, role);
     }
-
-
 }
