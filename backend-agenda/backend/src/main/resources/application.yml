@@ -1,0 +1,17 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/agendas_db
+    username: postgres
+    password: Chloe2023
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+jwt:
+  secret: mi_clave_super_segura_de_32_char
+  expiration: 86400000
+
+google:
+  client-id: TU_GOOGLE_CLIENT_ID_AQUI
