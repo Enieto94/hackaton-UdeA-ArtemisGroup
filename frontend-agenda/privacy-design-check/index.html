@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cavaltec Privacy Design Check</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Resumen del diagnóstico">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">C</span>
+          <div>
+            <strong>Cavaltec</strong>
+            <span>Privacy Design Check</span>
+          </div>
+        </div>
+
+        <div class="auth-panel">
+          <span class="eyebrow">Acceso OAuth</span>
+          <div class="oauth-actions" role="group" aria-label="Proveedores OAuth">
+            <button class="oauth-button" type="button" data-provider="Google">
+              <span aria-hidden="true">G</span>
+              Google
+            </button>
+            <button class="oauth-button" type="button" data-provider="Microsoft">
+              <span aria-hidden="true">M</span>
+              Microsoft
+            </button>
+          </div>
+          <p id="sessionStatus" class="session-status">Sin sesión iniciada</p>
+        </div>
+
+        <div class="score-panel">
+          <div class="gauge" aria-label="Nivel de cumplimiento">
+            <div class="gauge-fill" id="gaugeFill"></div>
+            <div class="gauge-center">
+              <strong id="scoreValue">0%</strong>
+              <span id="scoreLevel">Sin evaluar</span>
+            </div>
+          </div>
+
+          <div class="score-grid" aria-label="Cumplimiento por bloque">
+            <div>
+              <span>Política</span>
+              <strong id="scorePolicy">0/40</strong>
+            </div>
+            <div>
+              <span>Diseño</span>
+              <strong id="scoreDesign">0/36</strong>
+            </div>
+            <div>
+              <span>Gobernanza</span>
+              <strong id="scoreGovernance">0/24</strong>
+            </div>
+          </div>
+        </div>
+
+        <nav class="side-nav" aria-label="Secciones">
+          <a href="#empresa">Empresa</a>
+          <a href="#diagnostico">Diagnóstico</a>
+          <a href="#asistente">Asistente</a>
+          <a href="#resultados">Resultados</a>
+        </nav>
+      </aside>
+
+      <main class="workspace">
+        <section class="topbar" aria-label="Estado general">
+          <div>
+            <span class="eyebrow">Ley 1581 de 2012</span>
+            <h1>Autodiagnóstico de cumplimiento en fase de diseño</h1>
+          </div>
+          <button id="resetButton" class="ghost-button" type="button">Reiniciar</button>
+        </section>
+
+        <section id="empresa" class="section-band">
+          <div class="section-heading">
+            <span class="eyebrow">Empresa</span>
+            <h2>Datos de la organización</h2>
+          </div>
+
+          <form class="company-form" autocomplete="off">
+            <label>
+              Nombre
+              <input id="companyName" name="companyName" type="text" maxlength="90" required />
+            </label>
+            <label>
+              NIT
+              <input id="companyNit" name="companyNit" type="text" maxlength="30" required />
+            </label>
+            <label>
+              Sector
+              <select id="companySector" name="companySector">
+                <option value="">Seleccione</option>
+                <option>Tecnología</option>
+                <option>Salud</option>
+                <option>Educación</option>
+                <option>Comercio</option>
+                <option>Financiero</option>
+                <option>Servicios</option>
+                <option>Otro</option>
+              </select>
+            </label>
+            <label>
+              Tamaño
+              <select id="companySize" name="companySize">
+                <option value="">Seleccione</option>
+                <option>Micro</option>
+                <option>Pequeña</option>
+                <option>Mediana</option>
+                <option>Grande</option>
+              </select>
+            </label>
+          </form>
+        </section>
+
+        <section id="diagnostico" class="section-band">
+          <div class="section-heading">
+            <span class="eyebrow">Diagnóstico</span>
+            <h2>Cuestionario ponderado</h2>
+          </div>
+          <div id="questionsContainer" class="questions"></div>
+        </section>
+
+        <section id="asistente" class="section-band assistant-layout">
+          <div class="assistant-main">
+            <div class="section-heading">
+              <span class="eyebrow">Asistente IA</span>
+              <h2>Chat de apoyo normativo</h2>
+            </div>
+            <div id="chatMessages" class="chat-messages" aria-live="polite"></div>
+            <form id="chatForm" class="chat-form">
+              <select id="chatQuestion" aria-label="Pregunta del contexto"></select>
+              <input
+                id="chatInput"
+                type="text"
+                maxlength="240"
+                placeholder="Pregunte por evidencia, criterio, brecha o recomendación"
+                aria-label="Mensaje para el asistente"
+              />
+              <button type="submit">Enviar</button>
+            </form>
+          </div>
+
+          <div class="quick-panel">
+            <button type="button" class="quick-action" data-prompt="Explique la pregunta seleccionada">
+              Explicar
+            </button>
+            <button type="button" class="quick-action" data-prompt="Qué evidencia demuestra cumplimiento">
+              Evidencia
+            </button>
+            <button type="button" class="quick-action" data-prompt="Recomiende acciones para cerrar brechas">
+              Recomendaciones
+            </button>
+          </div>
+        </section>
+
+        <section id="resultados" class="section-band">
+          <div class="section-heading">
+            <span class="eyebrow">Resultados</span>
+            <h2>Brechas y estrategias de mejora</h2>
+          </div>
+          <div class="results-grid">
+            <div>
+              <h3>Brechas identificadas</h3>
+              <div id="gapsList" class="stack-list"></div>
+            </div>
+            <div>
+              <h3>Plan priorizado</h3>
+              <div id="planList" class="stack-list"></div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
