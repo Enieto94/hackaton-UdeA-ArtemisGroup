@@ -48,7 +48,7 @@ class AuthServiceTest {
         ReflectionTestUtils.setField(service, "encoder", encoder);
         ReflectionTestUtils.setField(service, "googleClientId", "client-id");
         when(restTemplateBuilder.build()).thenReturn(restTemplate);
-        when(restTemplate.getForObject(anyString(), any(Class.class), any())).thenReturn(Map.of(
+        when(restTemplate.getForObject(anyString(), any(Class.class), anyString())).thenReturn(Map.of(
                 "email", "google@example.com",
                 "name", "Google User",
                 "email_verified", true,
