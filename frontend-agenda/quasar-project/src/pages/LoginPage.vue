@@ -150,7 +150,12 @@ async function handleOAuth(provider) {
 
   try {
     if (provider === 'google') {
+      if (empresa && (!empresa.nombre || !empresa.nit)) {
+        throw new Error('Complete nombre y NIT de la empresa antes de continuar con Google.')
+      }
+
       await authStore.loginWithGoogle(empresa)
+      return
     } else {
       await authStore.loginWithMicrosoft(empresa)
     }

@@ -14,7 +14,6 @@ El frontend se conecta por defecto a `http://localhost:8080`. Puede cambiarse co
 
 ```bash
 VITE_CAVALTEC_API_URL=http://localhost:8080
-VITE_CAVALTEC_GOOGLE_CLIENT_ID=...
 VITE_CAVALTEC_MICROSOFT_CLIENT_ID=...
 ```
 
@@ -24,7 +23,8 @@ VITE_CAVALTEC_MICROSOFT_CLIENT_ID=...
 
 - `POST /auth/login`
 - `POST /auth/register`
-- `POST /auth/google`
+- `GET /auth/google`
+- `GET /auth/google/callback`
 - `POST /auth/microsoft`
 
 Registro:
@@ -96,7 +96,8 @@ Payload:
 - El token JWT se almacena en `localStorage` con la clave `cavaltec_token`.
 - Axios incluye automáticamente `Authorization: Bearer <token>`.
 - La ruta principal exige sesión autenticada.
-- OAuth requiere configurar los client IDs en variables `VITE_*`.
+- Google OAuth usa Authorization Code en backend. El frontend redirige a `GET /auth/google` y recibe el JWT propio de la app en `/auth/callback`.
+- Microsoft OAuth sigue requiriendo `VITE_CAVALTEC_MICROSOFT_CLIENT_ID`.
 
 ## Roles
 

@@ -17,6 +17,14 @@ const routes = [
   },
 
   {
+    path: '/auth/callback',
+    component: () => import('layouts/MainLayout.vue'),
+    children: [
+      { path: '', component: () => import('pages/AuthCallbackPage.vue') }
+    ]
+  },
+
+  {
     path: '/:catchAll(.*)*',
     component: () => import('pages/ErrorNotFound.vue')
   }

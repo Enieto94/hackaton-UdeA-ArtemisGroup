@@ -14,11 +14,10 @@ Cree un archivo `.env` en este directorio si necesita cambiar URLs o activar OAu
 
 ```bash
 VITE_CAVALTEC_API_URL=http://localhost:8080
-VITE_CAVALTEC_GOOGLE_CLIENT_ID=cliente-google.apps.googleusercontent.com
 VITE_CAVALTEC_MICROSOFT_CLIENT_ID=cliente-microsoft
 ```
 
-El backend debe permitir el origen del dev server de Quasar, normalmente `http://localhost:9000`.
+Google OAuth se inicia en el backend con `GET /auth/google`; configure allí `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` y `FRONTEND_AUTH_CALLBACK_URL`. El backend debe permitir el origen del dev server de Quasar, normalmente `http://localhost:9000`.
 
 ## Desarrollo
 

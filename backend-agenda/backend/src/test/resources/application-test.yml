@@ -17,7 +17,12 @@ jwt:
 
 google:
   client-id: test-client-id
+  client-secret: test-client-secret
+  redirect-uri: http://localhost:8080/auth/google/callback
+  state-expiration-seconds: 600
+  state-cookie-secure: false
 
 app:
+  frontend-auth-callback-url: http://localhost:9000/auth/callback
   cors:
     allowed-origins: http://localhost:9000

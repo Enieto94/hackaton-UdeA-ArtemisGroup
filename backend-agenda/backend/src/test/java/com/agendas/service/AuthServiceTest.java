@@ -8,6 +8,7 @@ import com.agendas.entity.User;
 import com.agendas.repository.EmpresaRepository;
 import com.agendas.repository.UserRepository;
 import com.agendas.security.jwt.JwtService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -22,6 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -49,7 +51,7 @@ class AuthServiceTest {
     @Test
     void googleLoginShouldCreateUserAndReturnTokenWhenGoogleTokenIsValid() {
         PasswordEncoder encoder = new BCryptPasswordEncoder();
-        AuthService service = new AuthService(repo, empresaRepository, encoder, jwtService, restTemplateBuilder);
+        AuthService service = new AuthService(repo, empresaRepository, encoder, jwtService, restTemplateBuilder, new ObjectMapper());
         ReflectionTestUtils.setField(service, "googleClientId", "client-id");
         EmpresaRegistrationRequest empresaRequest = new EmpresaRegistrationRequest();
         empresaRequest.setNombre("Empresa Demo");
@@ -64,9 +66,11 @@ class AuthServiceTest {
         when(restTemplate.getForObject(anyString(), eq(Map.class), eq("valid-token"))).thenReturn(Map.of(
                 "email", "google@example.com",
                 "name", "Google User",
+                "sub", "google-sub",
                 "email_verified", true,
                 "aud", "client-id"
         ));
+        when(repo.findByOauthProviderAndOauthProviderId("google", "google-sub")).thenReturn(Optional.empty());
         when(repo.findByEmail("google@example.com")).thenReturn(Optional.empty());
         when(empresaRepository.findByNit("900123456-7")).thenReturn(Optional.empty());
         when(empresaRepository.save(any(Empresa.class))).thenReturn(empresa);
@@ -78,5 +82,30 @@ class AuthServiceTest {
         assertEquals("jwt-token", response.getToken());
         assertEquals(Role.EVALUADOR.name(), response.getRole());
         verify(repo).save(any(User.class));
+    }
+
+    @Test
+    void googleLoginShouldCreateUserWithoutCompanyWhenGoogleTokenIsValid() {
+        PasswordEncoder encoder = new BCryptPasswordEncoder();
+        AuthService service = new AuthService(repo, empresaRepository, encoder, jwtService, restTemplateBuilder, new ObjectMapper());
+        ReflectionTestUtils.setField(service, "googleClientId", "client-id");
+        GoogleLoginRequest request = new GoogleLoginRequest("valid-token", null);
+        when(restTemplateBuilder.build()).thenReturn(restTemplate);
+        when(restTemplate.getForObject(anyString(), eq(Map.class), eq("valid-token"))).thenReturn(Map.of(
+                "email", "google@example.com",
+                "name", "Google User",
+                "sub", "google-sub",
+                "email_verified", true,
+                "aud", "client-id"
+        ));
+        when(repo.findByOauthProviderAndOauthProviderId("google", "google-sub")).thenReturn(Optional.empty());
+        when(repo.findByEmail("google@example.com")).thenReturn(Optional.empty());
+        when(repo.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(jwtService.generateToken(any(User.class))).thenReturn("jwt-token");
+
+        var response = service.googleLogin(request);
+
+        assertEquals("jwt-token", response.getToken());
+        assertNull(response.getEmpresaId());
     }
 }

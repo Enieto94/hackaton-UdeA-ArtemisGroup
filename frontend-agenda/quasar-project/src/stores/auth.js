@@ -4,10 +4,6 @@ import { api } from 'boot/axios'
 const TOKEN_KEY = 'cavaltec_token'
 const USER_KEY = 'cavaltec_user'
 
-function loadGoogleIdentityScript() {
-  return loadExternalScript('https://accounts.google.com/gsi/client', 'google-identity-services')
-}
-
 function loadMicrosoftScript() {
   return loadExternalScript('https://alcdn.msauth.net/browser/2.38.2/js/msal-browser.min.js', 'microsoft-msal')
 }
@@ -60,12 +56,22 @@ const normalizeSession = response => {
   }
 }
 
+function encodeBase64UrlJson(value) {
+  const json = JSON.stringify(value)
+  const bytes = new TextEncoder().encode(json)
+  let binary = ''
+  bytes.forEach(byte => {
+    binary += String.fromCharCode(byte)
+  })
+
+  return window.btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+}
+
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     token: localStorage.getItem(TOKEN_KEY) || null,
     user: readStoredJson(USER_KEY),
     oauthConfig: {
-      googleClientId: import.meta.env.VITE_CAVALTEC_GOOGLE_CLIENT_ID || '',
       microsoftClientId: import.meta.env.VITE_CAVALTEC_MICROSOFT_CLIENT_ID || ''
     }
   }),
@@ -94,33 +100,13 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async loginWithGoogle(empresa = null) {
-      if (!this.oauthConfig.googleClientId) {
-        throw new Error('Configure VITE_CAVALTEC_GOOGLE_CLIENT_ID en el frontend para usar Google OAuth.')
+      const baseUrl = api.defaults.baseURL.replace(/\/+$/, '')
+      const params = new URLSearchParams()
+      if (empresa) {
+        params.set('empresa', encodeBase64UrlJson(empresa))
       }
 
-      await loadGoogleIdentityScript()
-
-      if (!window.google?.accounts?.id) {
-        throw new Error('El SDK de Google Identity Services no está disponible.')
-      }
-
-      const credential = await new Promise((resolve, reject) => {
-        window.google.accounts.id.initialize({
-          client_id: this.oauthConfig.googleClientId,
-          callback: response => {
-            if (response.credential) resolve(response.credential)
-            else reject(new Error('Google no retornó credencial OAuth.'))
-          }
-        })
-        window.google.accounts.id.prompt(notification => {
-          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-            reject(new Error('No se pudo mostrar el inicio de sesión de Google.'))
-          }
-        })
-      })
-
-      const { data } = await api.post('/auth/google', { token: credential, empresa })
-      this.setSession(data)
+      window.location.assign(`${baseUrl}/auth/google${params.toString() ? `?${params}` : ''}`)
     },
 
     async loginWithMicrosoft(empresa = null) {

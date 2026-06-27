@@ -28,6 +28,9 @@ public class User {
     @Column(name = "oauth_provider")
     private String oauthProvider;
 
+    @Column(name = "oauth_provider_id")
+    private String oauthProviderId;
+
     @Column(nullable = false)
     private String password;
 
