@@ -24,9 +24,10 @@ google:
   state-expiration-seconds: ${GOOGLE_STATE_EXPIRATION_SECONDS:600}
   state-cookie-secure: ${GOOGLE_STATE_COOKIE_SECURE:false}
 
-llm:
-  api-url: ${LLM_API_URL:}
-  api-key: ${LLM_API_KEY:}
+gemini:
+  api-url: ${GEMINI_API_URL:https://generativelanguage.googleapis.com/v1beta/interactions}
+  api-key: ${GEMINI_API_KEY:}
+  model: ${GEMINI_MODEL:gemini-2.5-flash}
 
 app:
   frontend-auth-callback-url: ${FRONTEND_AUTH_CALLBACK_URL:http://localhost:9000/auth/callback}

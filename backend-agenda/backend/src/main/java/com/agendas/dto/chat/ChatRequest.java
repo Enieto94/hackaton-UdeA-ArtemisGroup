@@ -6,6 +6,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class ChatRequest {
 
@@ -20,4 +22,18 @@ public class ChatRequest {
     private Boolean respuesta;
 
     private String evidencia;
+
+    private EmpresaContext empresa;
+
+    private Integer puntaje;
+
+    private List<Integer> brechas;
+
+    @Data
+    public static class EmpresaContext {
+        private String nombre;
+        private String nit;
+        private String sector;
+        private String tamano;
+    }
 }

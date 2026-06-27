@@ -151,7 +151,10 @@ export const useEvaluationStore = defineStore('evaluation', {
         mensaje: message,
         preguntaNumero: question.id,
         respuesta: this.answers[question.id] ?? null,
-        evidencia: this.evidence[question.id] || ''
+        evidencia: this.evidence[question.id] || '',
+        empresa: this.company,
+        puntaje: this.result.total,
+        brechas: this.result.gaps.map(gap => gap.id)
       })
       this.addMessage('assistant', data.respuesta)
       return data.respuesta
