@@ -1,0 +1,4 @@
+node_modules
+.env
+.quasar
+.quasar.config.js.temporary.compiled.*.mjs
